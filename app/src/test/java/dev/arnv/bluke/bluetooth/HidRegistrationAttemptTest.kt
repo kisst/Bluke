@@ -13,10 +13,18 @@ class HidRegistrationAttemptTest {
         assertEquals(State.REGISTERED, attempt.state.value)
     }
 
-    @Test fun rejectedAttemptCannotBecomeRegisteredFromLateCallback() {
+    @Test fun rejectedAttemptIsConfirmedByItsOwnRegistrationCallback() {
+        // Samsung Android 13 returns false from registerApp and then registers anyway.
         val attempt = HidRegistrationAttempt(GamepadDpadOutputMode.ANDROID)
         attempt.commandCompleted(false)
-        assertFalse(attempt.statusChanged(true))
+        assertTrue(attempt.statusChanged(true))
+        assertEquals(State.REGISTERED, attempt.state.value)
+    }
+
+    @Test fun rejectedAttemptIgnoresUnregisteredCallback() {
+        val attempt = HidRegistrationAttempt(GamepadDpadOutputMode.ANDROID)
+        attempt.commandCompleted(false)
+        assertFalse(attempt.statusChanged(false))
         assertEquals(State.REJECTED, attempt.state.value)
     }
 

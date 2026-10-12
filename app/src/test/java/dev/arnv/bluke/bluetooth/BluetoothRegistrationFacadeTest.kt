@@ -15,6 +15,7 @@ import org.robolectric.annotation.Config
 
 private enum class RegistrationBehavior {
     REJECT_COMMAND,
+    REJECT_WITH_CALLBACK,
     ACCEPT_WITH_CALLBACK,
     ACCEPT_WITHOUT_CALLBACK,
 }
@@ -41,6 +42,10 @@ private class FakeBluetoothRegistrationFacade(
         registerCalls++
         return when (remainingBehaviors.removeFirst()) {
             RegistrationBehavior.REJECT_COMMAND -> false
+            RegistrationBehavior.REJECT_WITH_CALLBACK -> {
+                registrationState.value = true
+                false
+            }
             RegistrationBehavior.ACCEPT_WITH_CALLBACK -> {
                 registrationState.value = true
                 true
@@ -86,6 +91,17 @@ abstract class BluetoothRegistrationFacadeContract {
         assertEquals(RegistrationResult.Rejected(3), coordinator(facade).register(forceReset = false))
         assertEquals(3, facade.registerCalls)
         assertEquals(3, facade.unregisterCalls)
+    }
+
+    @Test
+    fun rejectedCommandConfirmedByCallbackCountsAsRegistered() = runTest {
+        val facade = FakeBluetoothRegistrationFacade(
+            behaviors = listOf(RegistrationBehavior.REJECT_WITH_CALLBACK),
+        )
+
+        assertEquals(RegistrationResult.Registered(1), coordinator(facade).register(forceReset = false))
+        assertEquals(1, facade.registerCalls)
+        assertEquals(1, facade.unregisterCalls)
     }
 
     @Test
