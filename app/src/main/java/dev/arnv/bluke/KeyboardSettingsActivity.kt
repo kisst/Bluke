@@ -182,7 +182,7 @@ class KeyboardSettingsActivity : ComponentActivity() {
                                     subtitle = keyBarRows.let { rows ->
                                         val keys = rows.sumOf { it.size }
                                         "$keys ${if (keys == 1) "key" else "keys"} in ${rows.size} " +
-                                            "${if (rows.size == 1) "row" else "rows"} · Ctrl, Esc, arrows, F-keys and more"
+                                            "${if (rows.size == 1) "row" else "rows"} · Ctrl, Esc, Home/End, F-keys and more"
                                     },
                                     icon = { Icon(Icons.Default.PhoneAndroid, null, tint = MaterialTheme.colorScheme.primary) },
                                     onClick = { dialog = KeyboardDialog.EXTRA_KEYS },

@@ -184,17 +184,19 @@ object ImeKeyBar {
     val CATEGORIES: List<String> = CATALOG.map { it.category }.distinct()
 
     /**
-     * Starting layout: modifiers and caret movement in the arrangement terminal key bars have made
-     * familiar, then the symbols a phone IME buries.
+     * Starting layout: Esc, Tab and the modifiers, then the navigation keys a phone keyboard lacks.
      *
-     * Deliberately three modest rows rather than everything available - a wall of keys is as
-     * unhelpful as too few, and the point is that users retune it.
+     * The arrows are not here: they always sit beside these rows as their own block (see
+     * [ARROW_CLUSTER]). Symbols are left out too - the phone keyboard already has them - but stay in
+     * the catalog for anyone who wants them a tap away.
      */
     val DEFAULT_ROWS: List<List<String>> = listOf(
-        listOf("esc", "mod_shift", "home", "up", "end", "pgup", "del"),
-        listOf("tab", "mod_ctrl", "mod_alt", "left", "down", "right", "pgdn"),
-        listOf("pipe", "backslash", "slash", "tilde", "backtick", "minus", "underscore")
+        listOf("esc", "tab", "mod_ctrl", "mod_alt", "mod_shift"),
+        listOf("home", "end", "pgup", "pgdn", "del"),
     )
+
+    /** The arrow keys, drawn as a fixed inverted-T block next to the configurable rows. */
+    val ARROW_CLUSTER: List<KeyDef> = listOf("up", "left", "down", "right").map { BY_ID.getValue(it) }
 
     const val MAX_ROWS = 6
     const val MAX_KEYS_PER_ROW = 10
