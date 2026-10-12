@@ -22,6 +22,12 @@ internal class HidRegistrationAttempt(val mode: GamepadDpadOutputMode) {
 
     fun statusChanged(registered: Boolean): Boolean {
         val current = mutableState.value
+        // Some firmware (seen on Samsung Android 13) returns false from registerApp and then
+        // registers anyway, so a rejected command can still be confirmed by its own callback.
+        if (current == State.REJECTED && registered) {
+            mutableState.value = State.REGISTERED
+            return true
+        }
         if (current in setOf(State.PENDING, State.REJECTED, State.UNREGISTERED)) return false
         if (registered && current == State.UNREGISTERING) return false
         mutableState.value = if (registered) State.REGISTERED else State.UNREGISTERED

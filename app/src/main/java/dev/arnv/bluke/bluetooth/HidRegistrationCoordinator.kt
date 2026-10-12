@@ -27,6 +27,7 @@ internal class HidRegistrationCoordinator(
     private val retryPolicy: RetryPolicy,
     private val callbackTimeoutMillis: Long =
         BluetoothCapabilityRepository.REGISTRATION_CALLBACK_TIMEOUT_MILLIS,
+    private val rejectedCallbackGraceMillis: Long = REJECTED_CALLBACK_GRACE_MILLIS,
     private val initialCleanupDelayMillis: Long,
     private val sleep: suspend (Long) -> Unit = { delay(it) },
     private val jitter: () -> Double = { Random.nextDouble(-1.0, 1.0) },
@@ -46,6 +47,13 @@ internal class HidRegistrationCoordinator(
         for (attempt in 1..retryPolicy.maxAttempts) {
             onAttempt(attempt)
             if (!facade.registerApp()) {
+                // A rejected command can still be followed by a successful registration callback.
+                val registered = withTimeoutOrNull(rejectedCallbackGraceMillis) {
+                    facade.registrationState.first { it }
+                }
+                if (registered == true) {
+                    return RegistrationResult.Registered(attempt)
+                }
                 lastResult = RegistrationResult.Rejected(attempt)
             } else {
                 val registered = withTimeoutOrNull(callbackTimeoutMillis) {
@@ -67,5 +75,9 @@ internal class HidRegistrationCoordinator(
 
     suspend fun awaitLateRegistration() {
         facade.registrationState.first { it }
+    }
+
+    companion object {
+        const val REJECTED_CALLBACK_GRACE_MILLIS = 1_000L
     }
 }
