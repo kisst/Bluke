@@ -148,7 +148,7 @@ jobs:
           $PR_LINE
 
           Installs next to the official Bluke app as **Bluke Test** (\`dev.arnv.bluke.test\`), so it does not replace it.
-          $UPDATE_LINE Unpair and re-pair the host if it was paired while the official app was in use.
+          $UPDATE_LINE
 
           Built by [this run]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID).
           EOF
