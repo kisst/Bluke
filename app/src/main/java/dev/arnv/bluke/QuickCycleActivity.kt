@@ -18,6 +18,7 @@ import androidx.core.content.edit
 import dev.arnv.bluke.ui.InputMode
 import dev.arnv.bluke.ui.SettingsCardGroup
 import dev.arnv.bluke.ui.SettingsItemData
+import dev.arnv.bluke.ui.normalizeInputModeKeys
 import dev.arnv.bluke.ui.normalizedCycleSelection
 import dev.arnv.bluke.ui.toggledCycleSelection
 import dev.arnv.bluke.ui.theme.MyApplicationTheme
@@ -31,7 +32,14 @@ class QuickCycleActivity : ComponentActivity() {
             MyApplicationTheme {
                 val modeIds = InputMode.entries.map { it.preferenceKey }
                 var selectedModes by remember {
-                    mutableStateOf(normalizedCycleSelection(preferences.getStringSet("cycle_connection_modes", null), modeIds))
+                    // Same normalization the toolbar uses, so opt-in modes are not shown as
+                    // checked before anything has been saved.
+                    mutableStateOf(
+                        normalizedCycleSelection(
+                            normalizeInputModeKeys(preferences.getStringSet("cycle_connection_modes", null)),
+                            modeIds,
+                        )
+                    )
                 }
                 val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
                 Scaffold(

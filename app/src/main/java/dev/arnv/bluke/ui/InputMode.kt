@@ -9,11 +9,15 @@ enum class InputMode(
     val id: Int,
     val preferenceKey: String,
     val displayName: String,
+    /** Whether a fresh install has this mode in its toolbar cycle. */
+    val enabledByDefault: Boolean = true,
 ) {
     KEYBOARD(0, "keyboard", "Keyboard"),
     TOUCHPAD(1, "touchpad", "Touchpad"),
     GAMEPAD(2, "gamepad", "Gamepad"),
     MEDIA_PRESENTATION(4, "media_presentation", "Multimedia"),
+    // Id 3 belonged to a removed mode and is migrated away, so it is not reused.
+    PHONE_KEYBOARD(5, "phone_keyboard", "Phone Keyboard", enabledByDefault = false),
     ;
 
     companion object {
@@ -24,7 +28,9 @@ enum class InputMode(
 private val legacyDefaultModeKeys = setOf("keyboard", "touchpad", "gamepad")
 private const val REMOVED_MOUSE_MODE_KEY = "mouse"
 private const val REMOVED_KEYBOARD_TOUCHPAD_MODE_KEY = "keyboard_touchpad"
-val defaultInputModeKeys: Set<String> = InputMode.entries.mapTo(linkedSetOf()) { it.preferenceKey }
+val defaultInputModeKeys: Set<String> = InputMode.entries
+    .filter { it.enabledByDefault }
+    .mapTo(linkedSetOf()) { it.preferenceKey }
 
 fun normalizeInputModeKeys(savedKeys: Set<String>?): Set<String> {
     val normalized = when {

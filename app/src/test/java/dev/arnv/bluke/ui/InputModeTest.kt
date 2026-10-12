@@ -48,4 +48,15 @@ class InputModeTest {
         )
         assertEquals(InputMode.KEYBOARD, InputMode.fromId(3))
     }
+
+    @Test
+    fun phoneKeyboardIsOptIn() {
+        assertFalse(defaultInputModeKeys.contains(InputMode.PHONE_KEYBOARD.preferenceKey))
+        assertFalse(normalizeInputModeKeys(null).contains(InputMode.PHONE_KEYBOARD.preferenceKey))
+        assertEquals(
+            setOf("keyboard", "phone_keyboard"),
+            normalizeInputModeKeys(setOf("keyboard", "phone_keyboard")),
+        )
+        assertEquals(InputMode.PHONE_KEYBOARD, InputMode.fromId(InputMode.PHONE_KEYBOARD.id))
+    }
 }
