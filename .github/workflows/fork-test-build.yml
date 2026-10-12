@@ -68,15 +68,18 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Install fixed debug signing key
+        id: key
         env:
           DEBUG_KEYSTORE_BASE64: ${{ secrets.DEBUG_KEYSTORE_BASE64 }}
         run: |
           if [ -z "$DEBUG_KEYSTORE_BASE64" ]; then
             echo "::warning::DEBUG_KEYSTORE_BASE64 is not set; this build gets a throwaway key and will not install over earlier test builds."
+            echo "fixed=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           mkdir -p ~/.android
           echo "$DEBUG_KEYSTORE_BASE64" | base64 --decode > ~/.android/debug.keystore
+          echo "fixed=true" >> "$GITHUB_OUTPUT"
 
       - name: Write test-build init script
         env:
@@ -126,8 +129,14 @@ jobs:
           SHA: ${{ steps.meta.outputs.sha }}
           FULL_SHA: ${{ steps.meta.outputs.full_sha }}
           VERSION: ${{ steps.meta.outputs.version }}
+          FIXED_KEY: ${{ steps.key.outputs.fixed }}
         run: |
           cp app/build/outputs/apk/debug/app-debug.apk "$APK"
+          if [ "$FIXED_KEY" = "true" ]; then
+            UPDATE_LINE="Newer test builds of this branch install over this one."
+          else
+            UPDATE_LINE="This build has a one-off signing key: uninstall any earlier Bluke Test before installing it."
+          fi
           PR_LINE=""
           if [ -n "$PR" ]; then
             PR_LINE="Upstream PR: https://github.com/arnav-kr/Bluke/pull/$PR"
@@ -139,7 +148,7 @@ jobs:
           $PR_LINE
 
           Installs next to the official Bluke app as **Bluke Test** (\`dev.arnv.bluke.test\`), so it does not replace it.
-          Newer test builds of this branch install over this one. Unpair and re-pair the host if it was paired while the official app was in use.
+          $UPDATE_LINE Unpair and re-pair the host if it was paired while the official app was in use.
 
           Built by [this run]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID).
           EOF
