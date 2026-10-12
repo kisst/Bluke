@@ -3,6 +3,13 @@
 All notable user-facing changes and improvements to Bluke are documented in this file.
 For detailed usage instructions, see the [Usage Guide](docs/USAGE.md).
 
+## [Unreleased]
+
+### Added
+- **Phone Keyboard Mode (optional):** Type on the host with the phone's own keyboard app. Keys go straight to the host as raw keystrokes, with no text box on the phone that could fall out of step with the host's text or cursor.
+- **Configurable Extra Keys:** Arrange rows of keys a phone keyboard lacks (Ctrl, Alt, Shift and Super as tap-to-latch modifiers, Esc, Tab, arrows, F-keys, symbols, host shortcuts) under Settings > Keyboard > Phone Keyboard.
+- **Host Keyboard Layouts & Unicode Entry:** Phone Keyboard and clipboard typing translate characters for the computer's layout (US, UK, German, Hungarian, French, Italian, Spanish, Swedish, Norwegian, Danish), with optional Linux, Windows and macOS Unicode entry for characters a layout cannot type.
+
 ## [1.1.0] - 2026-10-09
 
 > [!IMPORTANT]

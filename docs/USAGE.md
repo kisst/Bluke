@@ -92,6 +92,18 @@ A dedicated remote for couch media browsing and presentations.
 
 ---
 
+### Phone Keyboard (optional)
+Type on the computer with your phone's own keyboard app (Gboard, SwiftKey, and so on). It is off by default: long-press the mode button in any input mode's toolbar and tick **Phone Keyboard** to add it to the cycle.
+
+- **Straight to the host:** There is no text box on the phone. Every key goes to the computer as you press it, so the text and the cursor live on the computer's screen. Terminal tab completion, command history and clicking elsewhere all work, because Bluke has no copy that could fall out of step.
+- **Raw keys:** Bluke asks your keyboard app for plain keystrokes, the way terminal apps do, so autocorrect and word suggestions are off in this mode.
+- **Extra keys:** A configurable bar above the keyboard holds what a phone keyboard lacks: Ctrl, Alt, Shift, Super, Esc, Tab, arrows, Home/End, F-keys, hard-to-reach symbols and host shortcuts. Ctrl, Alt, Shift and Super latch: tap once for the next key only (outlined), twice to lock (filled), a third time to release.
+- **Clipboard:** The *Clipboard* key types out your phone's clipboard on the computer.
+- **Sound & vibration:** Toggle both from the toolbar. Sound is off by default because your keyboard app usually clicks already.
+- **Settings:** Under **Settings > Keyboard > Phone Keyboard**, set the **host keyboard layout** (the layout the *computer* is set to), an optional **Unicode entry fallback** for characters that layout cannot type, and the **extra keys** rows.
+
+---
+
 ## 4. Settings & Customization
 
 ### Personalization
@@ -171,6 +183,10 @@ A dedicated remote for couch media browsing and presentations.
 #### Russian or accented characters do not type correctly
 * **Cause:** Keyboards send physical key positions rather than typed letters. Your computer turns those keypresses into characters using whatever keyboard language is currently active on the computer.
 * **Fix:** When switching to the Russian layout in Bluke, switch your computer's input language to Russian as well.
+
+#### Phone Keyboard types the wrong symbols (for example `y` and `z` swapped)
+* **Cause:** Phone Keyboard has to know which layout the computer is using to pick the right keys for each character.
+* **Fix:** Set **Settings > Keyboard > Phone Keyboard > Host keyboard layout** to the layout the computer is set to. Layouts marked *unverified* have not been checked against real hardware yet, so please report any wrong characters.
 
 ---
 
