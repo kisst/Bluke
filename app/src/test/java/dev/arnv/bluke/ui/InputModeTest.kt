@@ -50,13 +50,16 @@ class InputModeTest {
     }
 
     @Test
-    fun phoneKeyboardIsOptIn() {
-        assertFalse(defaultInputModeKeys.contains(InputMode.PHONE_KEYBOARD.preferenceKey))
-        assertFalse(normalizeInputModeKeys(null).contains(InputMode.PHONE_KEYBOARD.preferenceKey))
-        assertEquals(
-            setOf("keyboard", "phone_keyboard"),
-            normalizeInputModeKeys(setOf("keyboard", "phone_keyboard")),
-        )
+    fun phoneKeyboardIsInTheDefaultCycle() {
+        assertTrue(normalizeInputModeKeys(null).contains(InputMode.PHONE_KEYBOARD.preferenceKey))
         assertEquals(InputMode.PHONE_KEYBOARD, InputMode.fromId(InputMode.PHONE_KEYBOARD.id))
+    }
+
+    @Test
+    fun untouchedPreviousDefaultGainsPhoneKeyboard() {
+        assertEquals(
+            defaultInputModeKeys,
+            normalizeInputModeKeys(setOf("keyboard", "touchpad", "gamepad", "media_presentation")),
+        )
     }
 }

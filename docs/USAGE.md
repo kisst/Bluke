@@ -92,8 +92,8 @@ A dedicated remote for couch media browsing and presentations.
 
 ---
 
-### Phone Keyboard (optional)
-Type on the computer with your phone's own keyboard app (Gboard, SwiftKey, and so on). It is off by default: long-press the mode button in any input mode's toolbar and tick **Phone Keyboard** to add it to the cycle.
+### Phone Keyboard
+Type on the computer with your phone's own keyboard app (Gboard, SwiftKey, and so on). Tap the mode button on the home screen until it shows the phone icon, then open it.
 
 - **Straight to the host:** There is no text box on the phone. Every key goes to the computer as you press it, so the text and the cursor live on the computer's screen. Terminal tab completion, command history and clicking elsewhere all work, because Bluke has no copy that could fall out of step.
 - **Raw keys:** Bluke asks your keyboard app for plain keystrokes, the way terminal apps do, so autocorrect and word suggestions are off in this mode.
