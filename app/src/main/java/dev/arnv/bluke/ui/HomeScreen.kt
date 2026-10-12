@@ -1327,6 +1327,7 @@ fun HomeScreen(
                                     1 -> "Launch Touchpad"
                                     2 -> "Launch Gamepad"
                                     4 -> "Launch Multimedia"
+                                    InputMode.PHONE_KEYBOARD.id -> "Launch Phone Keyboard"
                                     else -> "Launch Keyboard"
                                 }
                                 Icon(
