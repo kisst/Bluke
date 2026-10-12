@@ -1,0 +1,148 @@
+# Fork-only: builds a branch of this fork into an installable test APK and publishes it as a
+# pre-release, so changes headed for upstream PRs can be tried on a phone without a local build.
+#
+# Lives only on the fork's main branch - PR branches are cut from upstream main, so this never
+# travels upstream.
+#
+#   gh workflow run fork-test-build.yml --repo kisst/Bluke -f ref=feat/system-ime-input -f pr=13
+#
+# The APK installs next to the official app (package dev.arnv.bluke.test, label "Bluke Test").
+# It is signed with a fixed debug key from the DEBUG_KEYSTORE_BASE64 secret so each new build
+# installs over the previous one. Each branch has one rolling release: tag test-<branch>.
+name: Fork test build
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Branch, tag or commit to build
+        required: true
+        default: feat/system-ime-input
+      pr:
+        description: Upstream PR number, for the release notes (optional)
+        required: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: fork-test-build-${{ inputs.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    if: github.repository == 'kisst/Bluke'
+    name: Build & publish test APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout ${{ inputs.ref }}
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Describe build
+        id: meta
+        env:
+          REF: ${{ inputs.ref }}
+        run: |
+          SHA=$(git rev-parse --short HEAD)
+          SLUG=$(echo "$REF" | tr -c 'A-Za-z0-9._-' '-' | sed 's/-*$//')
+          VERSION=$(grep -oE "versionName\s*=\s*\"[^\"]+\"" app/build.gradle.kts | cut -d'"' -f2)
+          {
+            echo "sha=$SHA"
+            echo "full_sha=$(git rev-parse HEAD)"
+            echo "slug=$SLUG"
+            echo "version=$VERSION"
+            echo "tag=test-$SLUG"
+            echo "apk=bluke-test-$SLUG-$SHA.apk"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Install fixed debug signing key
+        env:
+          DEBUG_KEYSTORE_BASE64: ${{ secrets.DEBUG_KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$DEBUG_KEYSTORE_BASE64" ]; then
+            echo "::warning::DEBUG_KEYSTORE_BASE64 is not set; this build gets a throwaway key and will not install over earlier test builds."
+            exit 0
+          fi
+          mkdir -p ~/.android
+          echo "$DEBUG_KEYSTORE_BASE64" | base64 --decode > ~/.android/debug.keystore
+
+      - name: Write test-build init script
+        env:
+          BUILD_SHA: ${{ steps.meta.outputs.sha }}
+        run: |
+          # Applied with -I so the project's own build files stay untouched.
+          cat > "$RUNNER_TEMP/fork-test.init.gradle" <<'EOF'
+          allprojects {
+              plugins.withId('com.android.application') {
+                  android {
+                      buildFeatures { resValues true }
+                      buildTypes {
+                          debug {
+                              applicationIdSuffix '.test'
+                              versionNameSuffix "-test+${System.getenv('BUILD_SHA') ?: 'local'}"
+                              resValue 'string', 'app_name', 'Bluke Test'
+                          }
+                      }
+                  }
+              }
+          }
+          EOF
+
+      - name: Unit tests and debug APK
+        env:
+          BUILD_SHA: ${{ steps.meta.outputs.sha }}
+        run: ./gradlew -I "$RUNNER_TEMP/fork-test.init.gradle" testDebugUnitTest assembleDebug
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.meta.outputs.apk }}
+          path: app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Publish pre-release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REF: ${{ inputs.ref }}
+          PR: ${{ inputs.pr }}
+          TAG: ${{ steps.meta.outputs.tag }}
+          APK: ${{ steps.meta.outputs.apk }}
+          SHA: ${{ steps.meta.outputs.sha }}
+          FULL_SHA: ${{ steps.meta.outputs.full_sha }}
+          VERSION: ${{ steps.meta.outputs.version }}
+        run: |
+          cp app/build/outputs/apk/debug/app-debug.apk "$APK"
+          PR_LINE=""
+          if [ -n "$PR" ]; then
+            PR_LINE="Upstream PR: https://github.com/arnav-kr/Bluke/pull/$PR"
+          fi
+          cat > notes.md <<EOF
+          **Test build - not an official release.**
+
+          Branch \`$REF\` at $FULL_SHA (version $VERSION-test+$SHA).
+          $PR_LINE
+
+          Installs next to the official Bluke app as **Bluke Test** (\`dev.arnv.bluke.test\`), so it does not replace it.
+          Newer test builds of this branch install over this one. Unpair and re-pair the host if it was paired while the official app was in use.
+
+          Built by [this run]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID).
+          EOF
+          # One rolling release per branch keeps a stable link to the latest build.
+          gh release delete "$TAG" --yes --cleanup-tag 2>/dev/null || true
+          gh release create "$TAG" "$APK" \
+            --target "$FULL_SHA" \
+            --prerelease \
+            --latest=false \
+            --title "Test build: $REF @ $SHA" \
+            --notes-file notes.md
