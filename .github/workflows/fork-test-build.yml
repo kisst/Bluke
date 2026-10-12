@@ -100,10 +100,15 @@ jobs:
           }
           EOF
 
-      - name: Unit tests and debug APK
+      # Tests run against the project as-is: the test-build tweaks rename the app, which the
+      # project's own tests rightly check.
+      - name: Unit tests
+        run: ./gradlew testDebugUnitTest
+
+      - name: Debug APK
         env:
           BUILD_SHA: ${{ steps.meta.outputs.sha }}
-        run: ./gradlew -I "$RUNNER_TEMP/fork-test.init.gradle" testDebugUnitTest assembleDebug
+        run: ./gradlew -I "$RUNNER_TEMP/fork-test.init.gradle" assembleDebug
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
