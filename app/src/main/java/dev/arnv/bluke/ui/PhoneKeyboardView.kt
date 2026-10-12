@@ -8,8 +8,10 @@ import android.view.HapticFeedbackConstants
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.VolumeOff
@@ -30,8 +32,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -47,6 +51,9 @@ private const val PHONE_KEYBOARD_SOUND_PREFERENCE = "phone_keyboard_sound_enable
 private const val PHONE_KEYBOARD_VIBRATION_PREFERENCE = "phone_keyboard_vibration_enabled"
 
 private val PhoneKeyboardCanvasColor = Color(0xFF1D1D1D)
+
+/** How long the record of sent keys stays up after the last keystroke. */
+private const val ECHO_TIMEOUT_MILLIS = 4_000L
 
 /**
  * Types on the host with whichever keyboard app the phone has installed.
@@ -102,6 +109,15 @@ fun PhoneKeyboardView(
     // keystroke is what lets the key bar redraw when a one-shot modifier is used up.
     var latchRevision by remember { mutableIntStateOf(0) }
     val latch = remember { ModifierLatch() }
+    val echo = remember { KeystrokeEcho() }
+    var echoClears by remember { mutableIntStateOf(0) }
+    LaunchedEffect(latchRevision) {
+        delay(ECHO_TIMEOUT_MILLIS)
+        if (echo.entries.isNotEmpty()) {
+            echo.clear()
+            echoClears++
+        }
+    }
 
     // One unbounded queue drained by one long-lived consumer. A clipboard send is hundreds of
     // strokes; they must go out in order, and nothing may be dropped if more arrives mid-drain.
@@ -126,6 +142,7 @@ fun PhoneKeyboardView(
                 latchRevision++
             },
             onDropped = { droppedNotice = it },
+            echo = echo,
         )
     }
 
@@ -173,6 +190,8 @@ fun PhoneKeyboardView(
         // password into a string of shortcuts.
         val translation = HidCharMap.translate(text, hostLayout, unicodeMode)
         translation.events.forEach { strokeQueue.trySend(it.keyCode to it.isPress) }
+        echo.key("Clipboard")
+        latchRevision++
         statusNotice = "Sent ${text.length} characters from the clipboard"
         droppedNotice = translation.droppedChars.takeIf { it.isNotEmpty() }
     }
@@ -286,6 +305,8 @@ fun PhoneKeyboardView(
                 verticalArrangement = Arrangement.spacedBy(6.dp),
                 modifier = Modifier.padding(horizontal = 16.dp),
             ) {
+                val echoEntries = remember(latchRevision, echoClears) { echo.entries }
+                KeystrokeEchoLine(echoEntries)
                 Text(
                     text = if (isConnected) {
                         "Typing straight into the host as ${hostLayout.displayName}" +
@@ -342,21 +363,110 @@ fun PhoneKeyboardView(
         // Everything here goes to the *host*: "Back" is the host's back navigation (Alt+Left),
         // not this phone's back gesture.
         val latchStates = remember(latchRevision) { latch.snapshot() }
-        keyRows.forEach { row ->
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.Bottom,
+        ) {
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                row.forEach { def ->
-                    val latchState = (def.action as? ImeKeyBar.Action.Modifier)
-                        ?.let { latchStates[it.keyCode] }
-                        ?: ModifierLatch.State.OFF
-                    KeyBarKey(
-                        label = def.label,
-                        latchState = latchState,
-                        modifier = Modifier.weight(1f),
-                        testTagSuffix = def.id,
-                        onClick = { onKeyBarPress(def) },
+                keyRows.forEach { row ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        row.forEach { def ->
+                            val latchState = (def.action as? ImeKeyBar.Action.Modifier)
+                                ?.let { latchStates[it.keyCode] }
+                                ?: ModifierLatch.State.OFF
+                            KeyBarKey(
+                                label = def.label,
+                                latchState = latchState,
+                                modifier = Modifier.weight(1f),
+                                testTagSuffix = def.id,
+                                onClick = { onKeyBarPress(def) },
+                            )
+                        }
+                    }
+                }
+            }
+            ArrowCluster(onPress = ::onKeyBarPress)
+        }
+    }
+}
+
+/** The arrows as an inverted T on their own tinted panel, so they read as one control. */
+@Composable
+private fun ArrowCluster(onPress: (ImeKeyBar.KeyDef) -> Unit) {
+    val (up, left, down, right) = ImeKeyBar.ARROW_CLUSTER
+    val accent = MaterialTheme.colorScheme.primary
+    val shape = RoundedCornerShape(10.dp)
+    Column(
+        modifier = Modifier
+            .clip(shape)
+            .background(accent.copy(alpha = 0.14f))
+            .border(1.dp, accent.copy(alpha = 0.45f), shape)
+            .padding(4.dp)
+            .testTag("phone_keyboard_arrows"),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        @Composable
+        fun Arrow(def: ImeKeyBar.KeyDef) = KeyBarKey(
+            label = def.label,
+            latchState = ModifierLatch.State.OFF,
+            modifier = Modifier.width(40.dp),
+            testTagSuffix = def.id,
+            fontSize = 18.sp,
+        ) { onPress(def) }
+        Arrow(up)
+        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            Arrow(left)
+            Arrow(down)
+            Arrow(right)
+        }
+    }
+}
+
+/**
+ * What was just sent, newest on the right: typed text as it would appear, other keys as labelled
+ * caps. Scrolled to the end so the latest keystroke is always in view.
+ */
+@Composable
+private fun KeystrokeEchoLine(entries: List<KeystrokeEcho.Entry>) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(48.dp)
+            .horizontalScroll(rememberScrollState(), reverseScrolling = true)
+            .testTag("phone_keyboard_echo"),
+        horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.End),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        entries.forEach { entry ->
+            when (entry) {
+                is KeystrokeEcho.Entry.Text -> Text(
+                    text = entry.text,
+                    color = Color.White,
+                    fontSize = 24.sp,
+                    fontFamily = FontFamily.Monospace,
+                    maxLines = 1,
+                )
+                is KeystrokeEcho.Entry.Key -> Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(Color.White.copy(alpha = 0.12f))
+                        .border(1.dp, Color.White.copy(alpha = 0.3f), RoundedCornerShape(6.dp))
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                ) {
+                    Text(
+                        text = if (entry.count > 1) "${entry.label} ×${entry.count}" else entry.label,
+                        color = Color.White,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
                     )
                 }
             }
@@ -371,6 +481,7 @@ private fun KeyBarKey(
     modifier: Modifier = Modifier,
     /** Distinguishes keys that share a label. */
     testTagSuffix: String,
+    fontSize: TextUnit = 11.sp,
     onClick: () -> Unit,
 ) {
     val accent = MaterialTheme.colorScheme.primary
@@ -397,7 +508,7 @@ private fun KeyBarKey(
         Text(
             text = label,
             color = textColor,
-            fontSize = 11.sp,
+            fontSize = fontSize,
             fontWeight = FontWeight.Bold,
             maxLines = 1,
         )

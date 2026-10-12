@@ -60,6 +60,8 @@ class PhoneKeyboardBridge(
     private val emit: (List<Pair<Int, Boolean>>) -> Unit,
     /** Characters the host layout (and Unicode fallback) could not produce. */
     private val onDropped: (String) -> Unit = {},
+    /** Told what each keystroke means, for the on-screen record of what was sent. */
+    private val echo: KeystrokeEcho? = null,
 ) {
 
     /** Types [text] on the host, applying any latched modifiers per character. */
@@ -79,6 +81,7 @@ class PhoneKeyboardBridge(
             dropped.append(translation.droppedChars)
             if (translation.events.isEmpty()) continue
             out += withModifiers(modifiers.active(), translation.events.map { it.keyCode to it.isPress })
+            echo?.typed(unit, modifiers.active())
             modifiers.consumeOnce()
         }
         if (out.isNotEmpty()) emit(out)
@@ -89,6 +92,7 @@ class PhoneKeyboardBridge(
     fun tapKey(keyCode: Int, extraModifiers: List<Int> = emptyList()) {
         val mods = (modifiers.active() + extraModifiers).distinct()
         emit(withModifiers(mods, listOf(keyCode to true, keyCode to false)))
+        echo?.pressed(keyCode, mods)
         modifiers.consumeOnce()
     }
 
@@ -129,6 +133,7 @@ class PhoneKeyboardBridge(
             if (translation.events.isEmpty()) return false
             val mods = (modifiers.active() + extra).distinct()
             emit(withModifiers(mods, translation.events.map { it.keyCode to it.isPress }))
+            echo?.typed(char.toString(), mods)
             modifiers.consumeOnce()
         }
         return true
